@@ -18,6 +18,10 @@ body {
     width: 50vw;
     height: 80vh;
     resize: none;
+    scrollbar-width: thin;
+    overflow: auto;
+    outline: none;
+    display: inline-block;
 }
 
 #output {
@@ -25,4 +29,36 @@ body {
     max-width: 40vw;
     padding: 10px;
     margin: 10px auto;
+}
+
+#errorMessage {
+    display: none;
+    font-weight: bold;
+    font-size: 1.2em;
+    font-family: 'Arial', sans-serif;
+    background: #ff3434;
+    box-shadow: 0 0 10px #ff3434;
+    color: #fff;
+    text-align: center;
+    text-transform: uppercase;
+    padding: 10px;
+    margin: 10px auto;
+    width: 50vw;
+    border-radius: 5px;
+    /* fade in animation */
+    animation: fadeIn 0.5s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1
+    }
+}
+
+.header {
+    background: lightpink;
 }

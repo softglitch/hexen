@@ -1,6 +1,7 @@
 const fileInput = document.getElementById('fileInput');
 const editor = document.getElementById('editor');
 const output = document.getElementById('output');
+const errorMessage = document.getElementById('errorMessage');
 let imageType;
 
 function unhexlify(hexString) {
@@ -18,11 +19,20 @@ function isValidHex(str) {
 	return /^[0-9a-fA-F]+$/.test(str.replace(/\s/g, ''));
 }
 
+function stripHtmlTags(str) {
+	return str.replace(/<[^>]*>/g, '');
+}
+
 function renderImage() {
-	const hexString = editor.value;
+	const hexString = stripHtmlTags(editor.innerHTML);
+    console.log('Hex string to render:', hexString);
 	if (!isValidHex(hexString)) {
 		console.error('Invalid hex string');
+		errorMessage.textContent = 'Invalid hex string';
+		errorMessage.style.display = 'block';
 		return;
+	} else {
+		errorMessage.style.display = 'none';
 	}
 	const bytes = unhexlify(hexString);
 	const blob = new Blob([bytes], { type: imageType });
@@ -45,7 +55,9 @@ fileInput.addEventListener('change', function(e) {
 		const hexString = Array.from(bytes)
 			.map(b => b.toString(16).padStart(2, '0'))
 			.join('');
-		editor.value = hexString;
+		firstTwoBytes = hexString.slice(0, 4);
+		restBytes = hexString.slice(4);
+		editor.innerHTML = `<span class='header'>${firstTwoBytes}</span>${restBytes}`;
 		renderImage();
 	};
 
