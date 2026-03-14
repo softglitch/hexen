@@ -1,0 +1,28 @@
+html,
+body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    background: #212121;
+}
+
+#editor {
+    background: #2c2c2c;
+    border-radius: 10px;
+    border: 1px solid #000;
+    box-shadow: inset 0 0 10px #000;
+    font-family: 'Courier New', Courier, monospace;
+    color: #fff;
+    padding: 10px;
+    margin: 10px auto;
+    width: 50vw;
+    height: 80vh;
+    resize: none;
+}
+
+#output {
+    float: right;
+    max-width: 40vw;
+    padding: 10px;
+    margin: 10px auto;
+}
