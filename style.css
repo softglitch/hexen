@@ -106,7 +106,8 @@ html, body {
     flex-direction: column;
     padding: 12px 12px 12px 12px;
     gap: 10px;
-    overflow: hidden;
+    position: relative;
+    z-index: 1;
 }
 
 #previewPanel {
@@ -127,6 +128,76 @@ html, body {
     border-radius: 8px;
     object-fit: contain;
 }
+
+/* ── Structure map ───────────────────────────────────────────── */
+
+#structureMap {
+    flex-shrink: 0;
+    padding: 0 0 4px 0;
+}
+
+.smap-bar {
+    display: flex;
+    height: 28px;
+    border-radius: 6px;
+    overflow: visible;
+    gap: 2px;
+}
+
+.smap-block {
+    position: relative;
+    min-width: 20px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    overflow: visible;
+}
+
+.smap-label {
+    font-size: 0.65em;
+    font-family: 'Arial', sans-serif;
+    font-weight: bold;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    padding: 0 4px;
+    pointer-events: none;
+}
+
+.smap-safe        { background: #1a4a2a; color: #77ddaa; }
+.smap-interesting { background: #3a3a10; color: #dddd66; }
+.smap-danger      { background: #4a1a1a; color: #ff8888; }
+
+.smap-safe:hover        { background: #245e36; }
+.smap-interesting:hover { background: #4e4e18; }
+.smap-danger:hover      { background: #5e2222; }
+
+.smap-tooltip {
+    display: none;
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: #111;
+    border: 1px solid #444;
+    color: #ddd;
+    font-size: 0.75em;
+    font-family: 'Arial', sans-serif;
+    padding: 5px 9px;
+    border-radius: 5px;
+    white-space: nowrap;
+    pointer-events: none;
+    z-index: 100;
+}
+
+.smap-block:hover .smap-tooltip {
+    display: block;
+}
+
 
 /* ── Editors ─────────────────────────────────────────────────── */
 
