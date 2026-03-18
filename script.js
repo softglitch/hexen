@@ -363,9 +363,37 @@ function undoGlitch() {
     glitchUndo.disabled = undoStack.length === 0;
 }
 
+const glitchRandom = document.getElementById('glitchRandom');
+const downloadBtn  = document.getElementById('downloadBtn');
+
+const RANDOM_OPS = ['xor', 'add', 'sub', 'xor', 'xor']; // weight XOR higher
+
+function randomizeGlitch() {
+    const op = RANDOM_OPS[Math.floor(Math.random() * RANDOM_OPS.length)];
+    glitchOp.value = op;
+    updateGlitchUI();
+
+    const val = Math.floor(Math.random() * 255) + 1; // avoid 0
+    glitchValue.value = val.toString(16).padStart(2, '0');
+
+    // Stride: bias toward larger values to keep it non-destructive
+    const strides = [2, 4, 8, 16, 32, 64];
+    glitchStride.value = strides[Math.floor(Math.random() * strides.length)];
+}
+
+function downloadImage() {
+    const a = document.createElement('a');
+    a.href = output.src;
+    const ext = imageType === 'image/jpeg' ? 'jpg' : 'png';
+    a.download = `hexen-glitch.${ext}`;
+    a.click();
+}
+
 glitchOp.addEventListener('change', updateGlitchUI);
 glitchApply.addEventListener('click', applyGlitch);
 glitchUndo.addEventListener('click', undoGlitch);
+glitchRandom.addEventListener('click', randomizeGlitch);
+downloadBtn.addEventListener('click', downloadImage);
 updateGlitchUI();
 
 // ── Core ──────────────────────────────────────────────────────

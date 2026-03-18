@@ -130,9 +130,26 @@ html, body {
 
 #output {
     max-width: 100%;
-    max-height: calc(100vh - 80px);
+    max-height: calc(100vh - 120px);
     border-radius: 8px;
     object-fit: contain;
+}
+
+#downloadBtn {
+    padding: 7px 20px;
+    background: #313244;
+    border: 1px solid #89b4fa33;
+    border-radius: 6px;
+    color: #89b4fa;
+    font-size: 0.9em;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+    flex-shrink: 0;
+}
+
+#downloadBtn:hover {
+    background: #89b4fa22;
+    border-color: #89b4fa;
 }
 
 /* ── Structure map ───────────────────────────────────────────── */
@@ -245,6 +262,17 @@ html, body {
     font-size: 0.95em;
     cursor: pointer;
     transition: background 0.15s, border-color 0.15s;
+}
+
+#glitchRandom {
+    background: #313244;
+    color: #cba6f7;
+    border-color: #cba6f733;
+}
+
+#glitchRandom:hover {
+    background: #cba6f722;
+    border-color: #cba6f7;
 }
 
 #glitchApply {
