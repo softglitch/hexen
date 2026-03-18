@@ -6,10 +6,34 @@
     <link rel="stylesheet" type="text/css" href="style.css">
 </head>
 <body>
-    <img id="output"></img>
-    <input type="file" id="fileInput">
-    <div id="editor" contenteditable="true"></div>
-    <p id="errorMessage">Invalid hex strtring</p>
+
+    <div id="uploadScreen">
+        <div id="dropZone">
+            <div id="dropIcon">&#128247;</div>
+            <p id="dropText">Drop an image here</p>
+            <p id="dropSubtext">JPEG or PNG</p>
+            <label id="uploadBtn" for="fileInput">Browse files</label>
+            <input type="file" id="fileInput" accept="image/jpeg,image/png">
+        </div>
+    </div>
+
+    <div id="mainLayout">
+        <div id="editorPanel">
+            <div class="editor-section">
+                <div class="editor-label header-label">Header <span class="label-hint">(structure data — edit with care)</span></div>
+                <div id="headerEditor" contenteditable="true" spellcheck="false"></div>
+            </div>
+            <div class="editor-section">
+                <div class="editor-label data-label">Image data <span class="label-hint">(safe to experiment with)</span></div>
+                <div id="dataEditor" contenteditable="true" spellcheck="false"></div>
+            </div>
+        </div>
+        <div id="previewPanel">
+            <img id="output">
+            <p id="errorMessage">Invalid hex string</p>
+        </div>
+    </div>
+
     <script src="script.js"></script>
 </body>
 </html>
