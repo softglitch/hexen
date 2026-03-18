@@ -20,6 +20,24 @@
     <div id="mainLayout">
         <div id="editorPanel">
             <div id="structureMap"></div>
+            <div id="glitchTools">
+                <select id="glitchOp">
+                    <option value="xor">XOR</option>
+                    <option value="add">ADD</option>
+                    <option value="sub">SUB</option>
+                    <option value="set">SET</option>
+                    <option value="null">NULL</option>
+                    <option value="reverse">Reverse</option>
+                    <option value="sort">Sort</option>
+                    <option value="shuffle">Shuffle</option>
+                </select>
+                <span id="glitchValueGroup">value <input id="glitchValue" type="text" placeholder="01" maxlength="2" value="01"></span>
+                <span id="glitchStrideGroup">every <input id="glitchStride" type="number" value="16" min="1"> bytes</span>
+                <span>in</span>
+                <select id="glitchRange"></select>
+                <button id="glitchApply">Apply</button>
+                <button id="glitchUndo" disabled>Undo</button>
+            </div>
             <div class="editor-section">
                 <div id="editor" contenteditable="true" spellcheck="false"></div>
             </div>

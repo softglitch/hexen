@@ -7,6 +7,8 @@ const mainLayout = document.getElementById('mainLayout');
 const dropZone = document.getElementById('dropZone');
 const structureMap = document.getElementById('structureMap');
 let imageType;
+let currentSegments = [];
+let undoStack = [];
 
 // ── Segment colours ───────────────────────────────────────────
 
@@ -247,6 +249,125 @@ function escapeHtml(str) {
     return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
+// ── Glitch tools ──────────────────────────────────────────────
+
+const glitchOp     = document.getElementById('glitchOp');
+const glitchValue  = document.getElementById('glitchValue');
+const glitchStride = document.getElementById('glitchStride');
+const glitchRange  = document.getElementById('glitchRange');
+const glitchApply  = document.getElementById('glitchApply');
+const glitchUndo   = document.getElementById('glitchUndo');
+const glitchValueGroup  = document.getElementById('glitchValueGroup');
+const glitchStrideGroup = document.getElementById('glitchStrideGroup');
+
+const OPS_NO_VALUE  = new Set(['null', 'reverse', 'sort', 'shuffle']);
+const OPS_NO_STRIDE = new Set(['reverse', 'sort', 'shuffle']);
+
+function updateGlitchUI() {
+    const op = glitchOp.value;
+    glitchValueGroup.style.display  = OPS_NO_VALUE.has(op)  ? 'none' : 'inline-flex';
+    glitchStrideGroup.style.display = OPS_NO_STRIDE.has(op) ? 'none' : 'inline-flex';
+}
+
+function populateRangeDropdown(segments) {
+    glitchRange.innerHTML = '';
+    const all = document.createElement('option');
+    all.value = '__all__';
+    all.textContent = 'whole file';
+    glitchRange.appendChild(all);
+    segments.forEach(seg => {
+        const opt = document.createElement('option');
+        opt.value = seg.name;
+        opt.textContent = seg.name;
+        glitchRange.appendChild(opt);
+    });
+
+    // Default to the main data segment — safest place to experiment
+    const dataSeg = segments.find(s => s.name === 'Scan data' || s.name === 'IDAT');
+    if (dataSeg) glitchRange.value = dataSeg.name;
+}
+
+function applyGlitch() {
+    const op     = glitchOp.value;
+    const val    = parseInt(glitchValue.value || 'ff', 16) & 0xff;
+    const stride = Math.max(1, parseInt(glitchStride.value) || 1);
+    const rangeKey = glitchRange.value;
+
+    const hex = editor.innerText.replace(/\n/g, '');
+    const bytes = unhexlify(hex);
+
+    let startByte, endByte;
+    if (rangeKey === '__all__') {
+        startByte = 0;
+        endByte = bytes.length;
+    } else {
+        const seg = currentSegments.find(s => s.name === rangeKey);
+        if (!seg) return;
+        startByte = seg.start / 2;
+        endByte   = seg.end   / 2;
+    }
+
+    // Save undo snapshot
+    undoStack.push(hex);
+    glitchUndo.disabled = false;
+
+    switch (op) {
+        case 'xor':
+            for (let i = startByte; i < endByte; i += stride)
+                bytes[i] ^= val;
+            break;
+        case 'add':
+            for (let i = startByte; i < endByte; i += stride)
+                bytes[i] = (bytes[i] + val) & 0xff;
+            break;
+        case 'sub':
+            for (let i = startByte; i < endByte; i += stride)
+                bytes[i] = (bytes[i] - val + 256) & 0xff;
+            break;
+        case 'set':
+            for (let i = startByte; i < endByte; i += stride)
+                bytes[i] = val;
+            break;
+        case 'null':
+            bytes.fill(0, startByte, endByte);
+            break;
+        case 'reverse': {
+            const slice = bytes.slice(startByte, endByte).reverse();
+            bytes.set(slice, startByte);
+            break;
+        }
+        case 'sort': {
+            const slice = bytes.slice(startByte, endByte).sort();
+            bytes.set(slice, startByte);
+            break;
+        }
+        case 'shuffle': {
+            for (let i = endByte - 1; i > startByte; i--) {
+                const j = startByte + Math.floor(Math.random() * (i - startByte + 1));
+                [bytes[i], bytes[j]] = [bytes[j], bytes[i]];
+            }
+            break;
+        }
+    }
+
+    const newHex = Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
+    editor.innerHTML = buildHighlightedHTML(newHex, currentSegments);
+    renderImage();
+}
+
+function undoGlitch() {
+    if (!undoStack.length) return;
+    const hex = undoStack.pop();
+    editor.innerHTML = buildHighlightedHTML(hex, currentSegments);
+    renderImage();
+    glitchUndo.disabled = undoStack.length === 0;
+}
+
+glitchOp.addEventListener('change', updateGlitchUI);
+glitchApply.addEventListener('click', applyGlitch);
+glitchUndo.addEventListener('click', undoGlitch);
+updateGlitchUI();
+
 // ── Core ──────────────────────────────────────────────────────
 
 function unhexlify(hexString) {
@@ -289,8 +410,12 @@ function loadFile(file) {
         console.log("imageType:", imageType);
 
         const segments = imageType === 'image/jpeg' ? buildStructureJPEG(hexString) : buildStructurePNG(hexString);
+        currentSegments = segments;
+        undoStack = [];
+        glitchUndo.disabled = true;
         editor.innerHTML = buildHighlightedHTML(hexString, segments);
         renderStructureMap(segments);
+        populateRangeDropdown(segments);
 
         uploadScreen.classList.add('hidden');
         mainLayout.classList.add('visible');
