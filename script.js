@@ -1,6 +1,5 @@
 const fileInput = document.getElementById('fileInput');
-const headerEditor = document.getElementById('headerEditor');
-const dataEditor = document.getElementById('dataEditor');
+const editor = document.getElementById('editor');
 const output = document.getElementById('output');
 const errorMessage = document.getElementById('errorMessage');
 const uploadScreen = document.getElementById('uploadScreen');
@@ -8,13 +7,53 @@ const mainLayout = document.getElementById('mainLayout');
 const dropZone = document.getElementById('dropZone');
 const structureMap = document.getElementById('structureMap');
 let imageType;
-let splitOffset = 0; // hex char index where headerEditor ends / dataEditor begins
+
+// ── Segment colours ───────────────────────────────────────────
+
+// Catppuccin Mocha palette
+const SEGMENT_COLORS = {
+    // JPEG
+    'SOI':       '#f38ba8', // red
+    'EOI':       '#f38ba8', // red
+    'DHT':       '#eba0ac', // maroon
+    'SOS':       '#fab387', // peach
+    'Scan data': '#f9e2af', // yellow
+    'DQT':       '#fab387', // peach
+    'SOF':       '#cba6f7', // mauve
+    'APP0':      '#89dceb', // sky
+    'APP1':      '#89b4fa', // blue
+    'COM':       '#b4befe', // lavender
+    // PNG
+    'Signature': '#f38ba8', // red
+    'IHDR':      '#cba6f7', // mauve
+    'IDAT':      '#f9e2af', // yellow
+    'IEND':      '#f38ba8', // red
+    'gAMA':      '#94e2d5', // teal
+    'cHRM':      '#94e2d5', // teal
+    'sRGB':      '#94e2d5', // teal
+    'iCCP':      '#94e2d5', // teal
+    'tEXt':      '#a6e3a1', // green
+    'iTXt':      '#a6e3a1', // green
+    'zTXt':      '#a6e3a1', // green
+    'bKGD':      '#f5c2e7', // pink
+    'pHYs':      '#f5e0dc', // rosewater
+};
+
+function segmentColor(name) {
+    if (SEGMENT_COLORS[name]) return SEGMENT_COLORS[name];
+    if (name.startsWith('APP')) return '#74c7ec'; // sapphire
+    if (name.startsWith('FF'))  return '#9399b2'; // overlay2
+    return '#bac2de'; // subtext1
+}
 
 // ── Structure map ──────────────────────────────────────────────
 
 function buildStructureJPEG(hex) {
+    const seg = (name, start, end, safety, tip) =>
+        ({ name, start, end, safety, tip, color: segmentColor(name) });
+
     const segments = [];
-    segments.push({ name: 'SOI', start: 0, end: 4, safety: 'danger', tip: 'Magic bytes — do not touch' });
+    segments.push(seg('SOI', 0, 4, 'danger', 'Magic bytes — do not touch'));
     let offset = 4;
 
     while (offset < hex.length - 2) {
@@ -23,7 +62,7 @@ function buildStructureJPEG(hex) {
         const markerByte = hex.substr(offset + 2, 2).toLowerCase();
 
         if (markerByte === 'd9') {
-            segments.push({ name: 'EOI', start: offset, end: offset + 4, safety: 'danger', tip: 'End of image — do not touch' });
+            segments.push(seg('EOI', offset, offset + 4, 'danger', 'End of image — do not touch'));
             break;
         }
 
@@ -41,9 +80,9 @@ function buildStructureJPEG(hex) {
             name = 'DHT'; safety = 'danger';
             tip = 'Huffman table — changing this will corrupt large regions of the image';
         } else if (markerByte === 'da') {
-            segments.push({ name: 'SOS', start: offset, end, safety: 'danger', tip: 'Start of scan header — leave alone' });
-            segments.push({ name: 'Scan data', start: end, end: hex.length - 4, safety: 'interesting', tip: 'Compressed scan data — flip individual bytes for glitch effects, large changes will corrupt' });
-            segments.push({ name: 'EOI', start: hex.length - 4, end: hex.length, safety: 'danger', tip: 'End of image — do not touch' });
+            segments.push(seg('SOS', offset, end, 'danger', 'Start of scan header — leave alone'));
+            segments.push(seg('Scan data', end, hex.length - 4, 'interesting', 'Compressed scan data — flip individual bytes for glitch effects, large changes will corrupt'));
+            segments.push(seg('EOI', hex.length - 4, hex.length, 'danger', 'End of image — do not touch'));
             break;
         } else if (markerByte.startsWith('e')) {
             const n = parseInt(markerByte[1], 16);
@@ -55,15 +94,18 @@ function buildStructureJPEG(hex) {
             name = `FF${markerByte.toUpperCase()}`; safety = 'safe'; tip = 'Segment';
         }
 
-        segments.push({ name, start: offset, end, safety, tip });
+        segments.push(seg(name, offset, end, safety, tip));
         offset = end;
     }
     return segments;
 }
 
 function buildStructurePNG(hex) {
+    const seg = (name, start, end, safety, tip) =>
+        ({ name, start, end, safety, tip, color: segmentColor(name) });
+
     const segments = [];
-    segments.push({ name: 'Signature', start: 0, end: 16, safety: 'danger', tip: 'PNG magic bytes — do not touch' });
+    segments.push(seg('Signature', 0, 16, 'danger', 'PNG magic bytes — do not touch'));
     let offset = 16;
 
     while (offset < hex.length) {
@@ -90,13 +132,13 @@ function buildStructurePNG(hex) {
             default:      safety = 'safe'; tip = `${typeName} chunk`;
         }
 
-        segments.push({ name: typeName, start: offset, end, safety, tip });
+        segments.push(seg(typeName, offset, end, safety, tip));
         offset = end;
     }
     return segments;
 }
 
-function renderStructureMap(segments, totalHexLen) {
+function renderStructureMap(segments) {
     structureMap.innerHTML = '';
     const bar = document.createElement('div');
     bar.className = 'smap-bar';
@@ -104,8 +146,11 @@ function renderStructureMap(segments, totalHexLen) {
     segments.forEach(seg => {
         const size = seg.end - seg.start;
         const block = document.createElement('div');
-        block.className = `smap-block smap-${seg.safety}`;
+        block.className = 'smap-block';
         block.style.flexGrow = size;
+        block.style.color = seg.color;
+        block.style.background = seg.color + '22';
+        block.style.border = `1px solid ${seg.color}55`;
 
         const label = document.createElement('span');
         label.className = 'smap-label';
@@ -114,17 +159,16 @@ function renderStructureMap(segments, totalHexLen) {
 
         const tooltip = document.createElement('div');
         tooltip.className = 'smap-tooltip';
-        const byteStart = seg.start / 2;
-        const byteEnd = seg.end / 2;
-        tooltip.textContent = `${seg.name}  ${byteStart}–${byteEnd} B  •  ${seg.tip}`;
+        tooltip.textContent = `${seg.name}  ${seg.start / 2}–${seg.end / 2} B  •  ${seg.tip}`;
         block.appendChild(tooltip);
-        block.addEventListener('click', () => highlightSegment(seg));
+
+        block.addEventListener('click', () => selectRange(editor, seg.start, seg.end));
         block.addEventListener('mouseenter', () => {
+            block.style.background = seg.color + '44';
             const tip = block.querySelector('.smap-tooltip');
             tip.style.left = '50%';
             tip.style.right = 'auto';
             tip.style.transform = 'translateX(-50%)';
-            // Reset first so getBoundingClientRect is accurate
             const tipRect = tip.getBoundingClientRect();
             const padding = 8;
             if (tipRect.left < padding) {
@@ -135,6 +179,9 @@ function renderStructureMap(segments, totalHexLen) {
                 tip.style.right = '0';
                 tip.style.transform = 'none';
             }
+        });
+        block.addEventListener('mouseleave', () => {
+            block.style.background = seg.color + '22';
         });
 
         bar.appendChild(block);
@@ -171,7 +218,6 @@ function selectRange(el, startChar, endChar) {
     sel.removeAllRanges();
     sel.addRange(range);
 
-    // Scroll selection into view within the editor
     const selRect = range.getBoundingClientRect();
     const elRect = el.getBoundingClientRect();
     if (selRect.top < elRect.top || selRect.bottom > elRect.bottom) {
@@ -179,78 +225,32 @@ function selectRange(el, startChar, endChar) {
     }
 }
 
-function highlightSegment(seg) {
-    if (seg.end <= splitOffset) {
-        selectRange(headerEditor, seg.start, seg.end);
-    } else if (seg.start >= splitOffset) {
-        selectRange(dataEditor, seg.start - splitOffset, seg.end - splitOffset);
-    } else {
-        // spans the split — highlight what's in the header
-        selectRange(headerEditor, seg.start, splitOffset);
-    }
-}
+// ── Highlight ─────────────────────────────────────────────────
 
-// ── Parse / split ──────────────────────────────────────────────
-
-function parseJPEG(hexString) {
-    let offset = 4; // skip SOI (FF D8)
-
-    while (offset < hexString.length) {
-        const marker = hexString.substr(offset, 4);
-        offset += 4; // past the marker
-
-        // SOS (FF DA) means everything after its segment is image data
-        if (marker === 'ffda' || marker === 'FFDA') {
-            const sosLength = parseInt(hexString.substr(offset, 4), 16) * 2;
-            offset += sosLength; // skip SOS header
-            console.log('SOS found at offset', offset);
-            return {
-                header: hexString.substr(0, offset),
-                data: hexString.substr(offset)
-            };
+function buildHighlightedHTML(hexString, segments) {
+    let html = '';
+    let pos = 0;
+    for (const seg of segments) {
+        if (seg.start > pos) {
+            html += escapeHtml(hexString.slice(pos, seg.start));
         }
-
-        // Read segment length and skip past it
-        const segLength = parseInt(hexString.substr(offset, 4), 16) * 2;
-        offset += segLength;
+        html += `<span style="color:${seg.color}">${escapeHtml(hexString.slice(seg.start, seg.end))}</span>`;
+        pos = seg.end;
     }
+    if (pos < hexString.length) {
+        html += escapeHtml(hexString.slice(pos));
+    }
+    return html;
 }
 
-function parsePNG(hexString) {
-    const SIGNATURE_LENGTH = 16; // 8 bytes = 16 hex chars
-    let offset = SIGNATURE_LENGTH;
-
-    while (offset < hexString.length) {
-        // Read chunk length (4 bytes = 8 hex chars)
-        const dataLength = parseInt(hexString.substr(offset, 8), 16) * 2;
-        // Read chunk type (4 bytes = 8 hex chars)
-        const chunkType = hexString.substr(offset + 8, 8);
-
-        // Convert hex chunk type to ASCII
-        const typeName = chunkType.match(/.{2}/g)
-            .map(h => String.fromCharCode(parseInt(h, 16)))
-            .join('');
-
-        if (typeName === 'IDAT') {
-            // Everything up to the first IDAT is header
-            return {
-                header: hexString.substr(0, offset),
-                data: hexString.substr(offset)
-            };
-        }
-
-        // Advance past: length(8) + type(8) + data + crc(8)
-        offset += 8 + 8 + dataLength + 8;
-    }
-
-    // No IDAT found, treat it all as header
-    return { header: hexString, data: '' };
+function escapeHtml(str) {
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
+
+// ── Core ──────────────────────────────────────────────────────
 
 function unhexlify(hexString) {
-    // Strip any whitespace/newlines the user might have added
     const clean = hexString.replace(/\s/g, '');
-
     const bytes = new Uint8Array(clean.length / 2);
     for (let i = 0; i < clean.length; i += 2) {
         bytes[i / 2] = parseInt(clean.substr(i, 2), 16);
@@ -262,12 +262,8 @@ function isValidHex(str) {
     return /^[0-9a-fA-F]+$/.test(str.replace(/\s/g, ''));
 }
 
-function getEditorText(el) {
-    return el.innerText.replace(/\n/g, '');
-}
-
 function renderImage() {
-    const hexString = getEditorText(headerEditor) + getEditorText(dataEditor);
+    const hexString = editor.innerText.replace(/\n/g, '');
     if (!isValidHex(hexString)) {
         errorMessage.style.display = 'block';
         return;
@@ -279,14 +275,12 @@ function renderImage() {
     output.src = URL.createObjectURL(blob);
 }
 
-
 function loadFile(file) {
     if (!file) return;
     const reader = new FileReader();
 
     reader.onload = function(e) {
         const bytes = new Uint8Array(e.target.result);
-
         const hexString = Array.from(bytes)
             .map(b => b.toString(16).padStart(2, '0'))
             .join('');
@@ -294,13 +288,9 @@ function loadFile(file) {
         imageType = file.type;
         console.log("imageType:", imageType);
 
-        const parsed = imageType === 'image/jpeg' ? parseJPEG(hexString) : parsePNG(hexString);
-        headerEditor.textContent = parsed.header;
-        dataEditor.textContent = parsed.data;
-        splitOffset = parsed.header.length;
-
         const segments = imageType === 'image/jpeg' ? buildStructureJPEG(hexString) : buildStructurePNG(hexString);
-        renderStructureMap(segments, hexString.length);
+        editor.innerHTML = buildHighlightedHTML(hexString, segments);
+        renderStructureMap(segments);
 
         uploadScreen.classList.add('hidden');
         mainLayout.classList.add('visible');
@@ -337,7 +327,6 @@ function debouncedRender() {
     renderTimer = setTimeout(renderImage, 400);
 }
 
-headerEditor.addEventListener('input', debouncedRender);
-dataEditor.addEventListener('input', debouncedRender);
+editor.addEventListener('input', debouncedRender);
 
 console.log('Script loaded successfully!');
